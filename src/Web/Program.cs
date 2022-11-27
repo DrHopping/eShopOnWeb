@@ -4,6 +4,7 @@ using BlazorAdmin;
 using BlazorAdmin.Services;
 using Blazored.LocalStorage;
 using BlazorShared;
+using MassTransit;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
@@ -42,6 +43,21 @@ builder.Services.AddScoped<ITokenClaimsService, IdentityTokenClaimService>();
 
 builder.Services.AddCoreServices(builder.Configuration);
 builder.Services.AddWebServices(builder.Configuration);
+
+builder.Services.AddMassTransit(x =>
+{
+    x.UsingAzureServiceBus((ctx, cfg) =>
+    {
+        cfg.Host(builder.Configuration.GetConnectionString("ServiceBusConnection"));
+        cfg.ReceiveEndpoint(builder.Configuration.Get<CatalogSettings>().OrderReserverQueueName, e =>
+        {
+            e.PrefetchCount = 100;
+            e.MaxConcurrentCalls = 100;
+            e.LockDuration = TimeSpan.FromMinutes(5);
+            e.MaxAutoRenewDuration = TimeSpan.FromMinutes(30);
+        });
+    });
+});
 
 // Add memory cache services
 builder.Services.AddMemoryCache();
